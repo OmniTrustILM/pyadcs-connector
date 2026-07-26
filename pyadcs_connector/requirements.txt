@@ -1,7 +1,7 @@
 Django==5.2.4
 asgiref==3.9.1
 asn1crypto==1.5.1
-certifi==2025.7.14
+certifi==2025.11.12
 cffi==1.17.1
 charset-normalizer==3.4.2
 cryptography==45.0.5
