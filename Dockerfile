@@ -21,21 +21,20 @@ COPY django-PyADCSConnector /app
 RUN python setup.py egg_info
 
 # Stage 2: Install dependencies based on the information extracted from the previous step
-# Caveat: Expects an empty line between base dependencies and extras, doesn't install extras
-# Also installs gunicon in the same step
+# Install the pinned dependency set (from the extracted requires.txt) as a cacheable layer
 FROM base-builder AS builder
 
 RUN apk update && apk add --no-cache build-base python3-dev
 RUN mkdir -p /install
 
 COPY --from=dependencies /app/django_PyADCSConnector.egg-info/requires.txt /tmp/
-RUN sh -c 'pip install --no-warn-script-location --prefix=/install $(grep -e ^$ -m 1 -B 9999 /tmp/requires.txt) gunicorn'
+RUN sh -c 'pip install --no-warn-script-location --prefix=/install -r /tmp/requires.txt'
 # Everything up to here should be fully cacheable unless dependencies change
 # Now copy the application code
 COPY django-PyADCSConnector /app
 COPY ./pyadcs_connector /app
 # Stage 3: Install application
-RUN sh -c 'pip install --no-warn-script-location --prefix=/install .'
+RUN sh -c 'pip install --no-warn-script-location --prefix=/install --no-deps .'
 
 # Stage 4: Install application into a temporary container, in order to have both source and compiled files
 # Compile static assets

@@ -20,6 +20,7 @@ exec gunicorn \
   --timeout  600 \
   --bind     0.0.0.0:8080 \
   --worker-tmp-dir /dev/shm \
+  --no-control-socket \
   pyadcs_connector.wsgi:application
 
 #exec "$@"
