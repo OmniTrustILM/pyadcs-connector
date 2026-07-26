@@ -1,3 +1,3 @@
 =====
-CZERTAINLY PyADCS Connector
+PyADCS Connector
 =====

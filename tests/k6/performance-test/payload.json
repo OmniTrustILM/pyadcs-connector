@@ -15,7 +15,7 @@
             "name": "raprofile_config_string",
             "content": [
                 {
-                    "data": "vmi307469.3key.local\\Demo MS Sub CA"
+                    "data": "ca.example.local\\Example Sub CA"
                 }
             ]
         },
@@ -24,10 +24,10 @@
             "content": [
                 {
                     "data": {
-                        "name": "Demo MS Sub CA",
-                        "display_name": "Demo MS Sub CA",
-                        "computer_name": "vmi307469.3key.local",
-                        "config_string": "vmi307469.3key.local\\Demo MS Sub CA",
+                        "name": "Example Sub CA",
+                        "display_name": "Example Sub CA",
+                        "computer_name": "ca.example.local",
+                        "config_string": "ca.example.local\\Example Sub CA",
                         "ca_type": "Enterprise Subordinate CA",
                         "is_enterprise": true,
                         "is_root": false

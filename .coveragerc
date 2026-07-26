@@ -1,0 +1,7 @@
+[run]
+source = pyadcs_connector
+relative_files = True
+omit =
+    */migrations/*
+    */tests.py
+    */test_*.py
