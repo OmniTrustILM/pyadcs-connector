@@ -6,7 +6,6 @@ from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
-from PyADCSConnector.models.discovery_certificate import DiscoveryCertificate
 from PyADCSConnector.models.discovery_history import DiscoveryHistory
 from PyADCSConnector.objects.discovery_history_request_dto import DiscoveryHistoryRequestDto
 from PyADCSConnector.services.discovery_history import create_discovery_history, get_discovery_history_data, \
@@ -40,9 +39,13 @@ def start_discovery(request, *args, **kwargs):
 def discovery_operations(request, uuid, *args, **kwargs):
     if request.method == "DELETE":
         try:
-            discovery_history = DiscoveryHistory.objects.get(uuid=uuid)
-            discovery_certificates = DiscoveryCertificate.objects.filter(discovery_id=discovery_history.id)
-            discovery_certificates.delete()
+            # select_for_update locks the row so a concurrent discovery
+            # persistence (which reads the same row under FOR UPDATE before
+            # adding join rows) cannot slip in a new DiscoveryCertificate
+            # after we've collected this discovery's rows for cascade delete.
+            discovery_history = DiscoveryHistory.objects.select_for_update().get(uuid=uuid)
+            # ORM cascade (DiscoveryCertificate.discovery FK, on_delete=CASCADE)
+            # clears join rows; shared Certificate rows are left for the cleanup sweep.
             discovery_history.delete()
             # return 204 no content
             return JsonResponse({}, status=204)

@@ -27,6 +27,18 @@ ADCS_ISSUE_POLLING_TIMEOUT = env("ADCS_ISSUE_POLLING_TIMEOUT", default=3000)
 # Prefix used for all database tables
 DATABASE_SCHEMA = env("DATABASE_SCHEMA", default="pyadcs")
 
+# Advisory lock key shared between discovery persistence (shared lock) and the
+# certificate cleanup sweep (exclusive lock), coordinating dangling-certificate
+# cleanup with in-flight discovery writes.
+CERTIFICATE_CLEANUP_LOCK_KEY = 4021900003
+
+# Scheduled orphan-certificate cleanup sweep (see PyADCSConnector.services.certificate_cleanup).
+CERTIFICATE_CLEANUP_ENABLED = env.bool("CERTIFICATE_CLEANUP_ENABLED", default=True)
+CERTIFICATE_CLEANUP_INTERVAL_SECONDS = env.int("CERTIFICATE_CLEANUP_INTERVAL_SECONDS", default=86400)
+# Rows deleted per transaction: the sweep releases its exclusive lock between
+# batches so a large backlog cannot stall discovery writes for its whole duration.
+CERTIFICATE_CLEANUP_BATCH_SIZE = env.int("CERTIFICATE_CLEANUP_BATCH_SIZE", default=1000)
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 

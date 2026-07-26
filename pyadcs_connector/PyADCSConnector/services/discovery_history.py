@@ -1,10 +1,11 @@
 import logging
 import threading
 
-from django.db import transaction
+from django.db import connection, transaction
 
-from pyadcs_connector.settings import ADCS_SEARCH_PAGE_SIZE
+from pyadcs_connector.settings import ADCS_SEARCH_PAGE_SIZE, CERTIFICATE_CLEANUP_LOCK_KEY
 from PyADCSConnector.exceptions.already_exist_exception import AlreadyExistException
+from PyADCSConnector.models.certificate import Certificate
 from PyADCSConnector.models.discovery_certificate import DiscoveryCertificate
 from PyADCSConnector.models.discovery_history import DiscoveryHistory
 from PyADCSConnector.objects.authority_instance_attribute import AuthorityInstanceAttribute
@@ -17,6 +18,7 @@ from PyADCSConnector.services.attributes.discovery_attributes import *
 from PyADCSConnector.services.attributes.metadata_attributes import get_ca_name_metadata_attribute, \
     get_template_name_metadata_attribute, get_failed_reason_metadata_attribute
 from PyADCSConnector.utils import attribute_definition_utils
+from PyADCSConnector.utils.certificate_fingerprint import certificate_fingerprint
 from PyADCSConnector.utils.discovery_status import DiscoveryStatus
 from PyADCSConnector.utils.dump_parser import AuthorityData, TemplateData, DumpParser
 
@@ -46,13 +48,13 @@ def run_discovery(form, discovery_history_uuid):
     try:
         discover_certificates(form, discovery_history)
     except Exception as e:
-        discovery_history.status = DiscoveryStatus.FAILED.value
-        discovery_history.meta = [get_failed_reason_metadata_attribute(str(e))]
-        discovery_history.save()
+        # Filtered update (not discovery_history.save()) so a discovery deleted
+        # concurrently during discovery is not resurrected.
+        DiscoveryHistory.objects.filter(uuid=discovery_history_uuid).update(
+            status=DiscoveryStatus.FAILED.value, meta=[get_failed_reason_metadata_attribute(str(e))])
         raise e
 
 
-@transaction.atomic
 def discover_certificates(request_dto, discovery_history):
     logger.info("Starting discovery for %s" % request_dto["name"])
 
@@ -131,17 +133,42 @@ def discover_certificates(request_dto, discovery_history):
 
     session.disconnect()
 
-    for certificate in total_certificates:
-        discovery_certificate = DiscoveryCertificate()
-        discovery_certificate.discovery_id = discovery_history.id
-        discovery_certificate.base64content = certificate.certificate
-        discovery_certificate.meta = get_certificate_meta(cas, certificate.template)
-        discovery_certificate.save()
-
     logger.info("Discovery %s has total %d certificates" % (request_dto["name"], len(total_certificates)))
 
-    discovery_history.status = DiscoveryStatus.COMPLETED.value
-    discovery_history.save()
+    # Persistence happens in one short transaction, after all WinRM I/O has
+    # completed, so we don't hold DB locks for the duration of the (slow,
+    # network-bound) collection above.
+    fingerprints = [certificate_fingerprint(c.certificate) for c in total_certificates]
+    with transaction.atomic():
+        with connection.cursor() as cur:
+            # Shared lock: coordinates with the certificate cleanup sweep's
+            # exclusive lock so a concurrent sweep can't remove certificates
+            # this discovery is about to (re)link.
+            cur.execute("SELECT pg_advisory_xact_lock_shared(%s)", [CERTIFICATE_CLEANUP_LOCK_KEY])
+
+        # Abort if the discovery was deleted while we were collecting via WinRM
+        # (no resurrection of a deleted discovery).
+        dh = DiscoveryHistory.objects.select_for_update().filter(id=discovery_history.id).first()
+        if dh is None:
+            logger.info("Discovery %s was deleted during collection; skipping persistence" % request_dto["name"])
+            return
+
+        unique = dict(zip(fingerprints, total_certificates))
+        # Insert in deterministic (ascending fingerprint) order: two concurrent
+        # discoveries inserting overlapping NEW fingerprints in different orders
+        # can otherwise deadlock against each other in Postgres.
+        Certificate.objects.bulk_create(
+            [Certificate(fingerprint=fp, base64content=c.certificate) for fp, c in sorted(unique.items())],
+            ignore_conflicts=True)
+        id_by_fp = dict(Certificate.objects.filter(fingerprint__in=unique.keys())
+                         .values_list("fingerprint", "id"))
+        DiscoveryCertificate.objects.bulk_create([
+            DiscoveryCertificate(discovery_id=dh.id, certificate_id=id_by_fp[fp],
+                                  meta=get_certificate_meta(cas, cert.template))
+            for fp, cert in zip(fingerprints, total_certificates)])
+
+        dh.status = DiscoveryStatus.COMPLETED.value
+        dh.save(update_fields=["status"])
 
     logger.info("Discovery %s completed" % request_dto["name"])
 
@@ -171,10 +198,11 @@ def get_discovery_history_data(discovery_history_request: DiscoveryHistoryReques
         #     discovery_id=discovery_history.id)[page_number * items_per_page:items_per_page]
         discovery_certificates = DiscoveryCertificate.objects.filter(
             discovery_id=discovery_history.id
-        ).order_by('uuid')[page_number * items_per_page:(page_number + 1) * items_per_page]
+        ).select_related('certificate').order_by('uuid')[
+            page_number * items_per_page:(page_number + 1) * items_per_page]
 
         discovery_history_response.certificate_data = [
-            DiscoveryCertificateDto(val.uuid, val.base64content, val.meta).to_json()
+            DiscoveryCertificateDto(val.uuid, val.certificate.base64content, val.meta).to_json()
             for val in discovery_certificates
         ]
 

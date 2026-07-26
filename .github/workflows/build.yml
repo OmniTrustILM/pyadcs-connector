@@ -8,9 +8,12 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pg: ["14", "16"]
     services:
       postgres:
-        image: postgres:16
+        image: postgres:${{ matrix.pg }}
         env: { POSTGRES_USER: pyadcs, POSTGRES_PASSWORD: pyadcs, POSTGRES_DB: pyadcs }
         ports: ['5432:5432']
         options: >-

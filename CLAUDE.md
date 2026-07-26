@@ -31,7 +31,7 @@ Django project layout:
 
 ## Database & compatibility invariant
 
-PostgreSQL (12+). Tables live in the schema from `DATABASE_SCHEMA` (default `pyadcs`) and are pinned
+PostgreSQL (14+). Tables live in the schema from `DATABASE_SCHEMA` (default `pyadcs`) and are pinned
 via each model's `db_table`. **Do not** rename the app label `PyADCSConnector` or change the schema
 default — both are part of the upgrade contract and would break existing deployments.
 
@@ -51,3 +51,6 @@ default — both are part of the upgrade contract and would break existing deplo
 | `ADCS_ISSUE_POLLING_TIMEOUT` | `3000` | ms |
 | `GUNICORN_WORKERS` | CPU count | container |
 | `GUNICORN_THREADS` | `4` | container |
+| `CERTIFICATE_CLEANUP_ENABLED` | `true` | scheduled orphan-certificate sweep |
+| `CERTIFICATE_CLEANUP_INTERVAL_SECONDS` | `86400` | at most one sweep per interval across workers |
+| `CERTIFICATE_CLEANUP_BATCH_SIZE` | `1000` | rows per transaction; lock released between batches |
