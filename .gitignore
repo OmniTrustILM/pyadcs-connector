@@ -45,6 +45,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+.scannerwork/
 *.cover
 *.py,cover
 .hypothesis/
@@ -243,3 +244,7 @@ fabric.properties
 # Downloaded chart dependencies
 **/charts/*.tgz
 *.tgz
+
+# Local planning docs (never committed)
+docs/superpowers/
+.superpowers/
