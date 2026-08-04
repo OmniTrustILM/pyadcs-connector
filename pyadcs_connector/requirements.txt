@@ -6,7 +6,7 @@ charset-normalizer==3.4.9
 cryptography==49.0.0
 decorator==5.3.1
 django-environ==0.14.0
-Django==5.2.16
+Django==5.2.17
 djangorestframework==3.17.1
 gssapi==1.11.1
 gunicorn==26.0.0
