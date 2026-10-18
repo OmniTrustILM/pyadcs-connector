@@ -14,8 +14,8 @@ from PyADCSConnector.utils.ca_select_method import CaSelectMethod
 def get_winrm_transport_configuration(request, kind, winrm_transport, *args, **kwargs):
     try:
         attributes = get_winrm_transport_configuration_attributes_list(kind, winrm_transport)
-    except ValueError as e:
-        return JsonResponse({"message": str(e)}, status=400)
+    except ValueError:
+        return JsonResponse({"message": "Unsupported authority kind or WinRM transport"}, status=400)
     return JsonResponse(attributes, safe=False,
                         content_type="application/json")
 
