@@ -11,8 +11,11 @@ from PyADCSConnector.utils.ca_select_method import CaSelectMethod
 
 
 @require_http_methods(["GET"])
-def get_winrm_transport_configuration(request, kind, wirm_transport, *args, **kwargs):
-    attributes = get_winrm_transport_configuration_attributes_list(kind, wirm_transport)
+def get_winrm_transport_configuration(request, kind, winrm_transport, *args, **kwargs):
+    try:
+        attributes = get_winrm_transport_configuration_attributes_list(kind, winrm_transport)
+    except ValueError as e:
+        return JsonResponse({"message": str(e)}, status=400)
     return JsonResponse(attributes, safe=False,
                         content_type="application/json")
 

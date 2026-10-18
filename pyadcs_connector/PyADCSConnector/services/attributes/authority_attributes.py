@@ -252,11 +252,7 @@ def get_winrm_transport_configuration_attributes_list(kind, winrm_transport):
     if winrm_transport != "credssp":
         raise ValueError("Unrecognized protocol: %s" % winrm_transport)
 
-    # attribute_list = []
-
-    match winrm_transport:
-        case "credssp":
-            return
+    return []
 
 
 ########################################################################################################################
