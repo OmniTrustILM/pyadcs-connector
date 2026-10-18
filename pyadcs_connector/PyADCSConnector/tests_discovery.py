@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import psycopg2
 from django.conf import settings
 from django.db import connection
-from django.test import TransactionTestCase, override_settings
+from django.test import RequestFactory, TransactionTestCase, override_settings
 from django.utils import timezone
 
 from PyADCSConnector.models.authority_instance import AuthorityInstance
@@ -32,6 +32,7 @@ from PyADCSConnector.services.discovery_history import (
 from PyADCSConnector.utils.certificate_fingerprint import certificate_fingerprint
 from PyADCSConnector.utils.discovery_status import DiscoveryStatus
 from PyADCSConnector.utils.dump_parser import DumpParser, ParseResult
+from PyADCSConnector.views.discovery_history import discovery_operations
 
 
 def _competing_connection():
@@ -716,11 +717,20 @@ class DiscoveryViewsTests(TransactionTestCase):
         response = self.client.delete(f"/v1/discoveryProvider/discover/{d1.uuid}")
 
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(response.content, b"")
         self.assertFalse(DiscoveryHistory.objects.filter(id=d1.id).exists())
         self.assertFalse(DiscoveryCertificate.objects.filter(discovery_id=d1.id).exists())
         self.assertTrue(DiscoveryHistory.objects.filter(id=d2.id).exists())
         self.assertTrue(Certificate.objects.filter(id=certificate_id).exists())
+
+    def test_discovery_operations_delete_returns_empty_body(self):
+        # Django's test client strips 204 bodies, so the view is called directly.
+        discovery = self._seed_discovery("view-del-body", [(self._b64("delete-view-body"), "WebServer")])
+        request = RequestFactory().delete(f"/v1/discoveryProvider/discover/{discovery.uuid}")
+
+        response = discovery_operations(request, uuid=str(discovery.uuid))
+
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.content, b"")
 
     def test_discovery_operations_delete_missing_returns_404(self):
         missing_uuid = uuid.uuid4()
