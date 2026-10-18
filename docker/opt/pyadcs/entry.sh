@@ -11,7 +11,7 @@ log "INFO" "Launching PyADCS Connector"
 
 cd /opt/pyadcs
 #python manage.py migrate
-python migrate.py
+python migrate.py || { log "ERROR" "Database migration failed, exiting"; exit 1; }
 
 exec gunicorn \
   --worker-class gthread \
