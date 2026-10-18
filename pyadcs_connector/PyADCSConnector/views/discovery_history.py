@@ -3,7 +3,7 @@ import logging
 from threading import Thread
 
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from PyADCSConnector.models.discovery_history import DiscoveryHistory
@@ -47,8 +47,7 @@ def discovery_operations(request, uuid, *args, **kwargs):
             # ORM cascade (DiscoveryCertificate.discovery FK, on_delete=CASCADE)
             # clears join rows; shared Certificate rows are left for the cleanup sweep.
             discovery_history.delete()
-            # return 204 no content
-            return JsonResponse({}, status=204)
+            return HttpResponse(status=204)
         except DiscoveryHistory.DoesNotExist:
             return JsonResponse({"message": "Requested Discovery History with UUID %s not found" % uuid}, status=404)
     else:

@@ -716,6 +716,7 @@ class DiscoveryViewsTests(TransactionTestCase):
         response = self.client.delete(f"/v1/discoveryProvider/discover/{d1.uuid}")
 
         self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.content, b"")
         self.assertFalse(DiscoveryHistory.objects.filter(id=d1.id).exists())
         self.assertFalse(DiscoveryCertificate.objects.filter(discovery_id=d1.id).exists())
         self.assertTrue(DiscoveryHistory.objects.filter(id=d2.id).exists())
