@@ -53,13 +53,16 @@ class SharedCertificateStoreMigrationTest(TransactionTestCase):
     CERT_DANGLING = "REFOR0xJTkdfQ0VSVElGSUNBVEU="  # attached to a non-existent discovery
 
     def setUp(self):
-        # Genuinely fresh start: drop the whole schema (django_migrations included --
-        # it lives here too, since the connection's search_path is pinned to this
-        # schema) and recreate it empty, so the migrate-to-0001 below is a real
-        # forward apply from nothing rather than a reverse of an already-applied 0002.
+        # Genuinely fresh start: drop the whole schema and recreate it empty, so the
+        # migrate-to-0001 below is a real forward apply from nothing rather than a
+        # reverse of an already-applied 0002. Pin the search_path (direct connection,
+        # no pooler) so the migration records of this run, and the bare-name
+        # introspection in the assertions below, resolve in this schema -- the same
+        # way migrate.py pins it for the real run.
         with connection.cursor() as cursor:
             cursor.execute(sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(sql.Identifier(S)))
             cursor.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(S)))
+            cursor.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(S)))
 
         executor = MigrationExecutor(connection)
         executor.migrate(self.migrate_from)
