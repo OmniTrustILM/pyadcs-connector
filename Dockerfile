@@ -5,6 +5,7 @@ ENV DJANGO_SETTINGS_MODULE=pyadcs_connector.settings
 ENV PYTHONUNBUFFERED=1
 
 RUN apk update && \
+  apk upgrade --no-cache && \
   apk add --no-cache gcc python3-dev krb5-dev openssl-dev libffi-dev
 
 FROM common-base AS base-builder
@@ -44,6 +45,9 @@ RUN cp -r /install/* /usr/local
 
 # Stage 5: Install compiled static assets and support files into clean image
 FROM common-base
+
+# pip is not needed at runtime, and the libraries it vendors fail the vulnerability scan
+RUN pip uninstall -y pip
 
 # add non root user pyadcs
 RUN addgroup --system --gid 10001 pyadcs && adduser --system --home /opt/pyadcs --uid 10001 --ingroup pyadcs pyadcs
